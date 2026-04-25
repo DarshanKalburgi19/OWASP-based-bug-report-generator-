@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OWASP Bug Report Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #080c10; --bg-panel: #0d1117; --bg-field: #0a0f15;
+  --border: #1e2d3d; --border-hover: #2a4060;
+  --accent: #00d4ff; --accent-dim: rgba(0,212,255,0.12); --accent-glow: rgba(0,212,255,0.25);
+  --green: #00ff88; --yellow: #ffc107; --red: #ff3b5c;
+  --text-primary: #e0ecf8; --text-sec: #6a8aaa; --text-muted: #3a5570;
+  --sev-high: #ff3b5c; --sev-high-bg: rgba(255,59,92,0.12);
+  --sev-med: #ffc107; --sev-med-bg: rgba(255,193,7,0.12);
+  --sev-low: #00ff88; --sev-low-bg: rgba(0,255,136,0.12);
+  --font-display: 'Syne', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+}
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-mono); background: var(--bg); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; position: relative; overflow-x: hidden; }
+.grid-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; background-image: linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px); background-size: 40px 40px; }
+.scanline { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px); opacity: 0.4; }
+
+/* HEADER */
+.site-header { position: relative; z-index: 10; border-bottom: 1px solid var(--border); background: rgba(8,12,16,0.9); backdrop-filter: blur(12px); }
+.header-inner { max-width: 1400px; margin: 0 auto; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+.logo-block { display: flex; align-items: center; gap: 14px; }
+.logo-icon { font-size: 28px; color: var(--accent); filter: drop-shadow(0 0 8px var(--accent-glow)); animation: pulse-glow 3s ease-in-out infinite; }
+@keyframes pulse-glow { 0%,100% { filter: drop-shadow(0 0 6px var(--accent-glow)); } 50% { filter: drop-shadow(0 0 16px var(--accent)); } }
+.logo-title { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: 2px; color: var(--text-primary); }
+.logo-title .accent { color: var(--accent); }
+.logo-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; margin-top: 2px; }
+.header-badges { display: flex; gap: 10px; align-items: center; }
+.badge { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; padding: 4px 10px; border-radius: 4px; border: 1px solid; }
+.badge-owasp { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+.badge-live { color: var(--green); border-color: var(--green); background: rgba(0,255,136,0.08); display: flex; align-items: center; gap: 6px; }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+/* LAYOUT */
+.app-layout { flex: 1; position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; width: 100%; padding: 32px; display: grid; grid-template-columns: 440px 1fr; gap: 24px; align-items: start; }
+.panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; animation: fade-up 0.5s ease both; }
+.panel-output { animation-delay: 0.1s; }
+@keyframes fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border); background: rgba(0,212,255,0.03); }
+.panel-title { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: 1px; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+.panel-icon { color: var(--accent); font-size: 18px; }
+.panel-tag { font-size: 9px; font-weight: 700; letter-spacing: 2px; color: var(--text-muted); border: 1px solid var(--border); padding: 3px 8px; border-radius: 3px; }
+
+/* FORM */
+#reportForm { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.field-group { display: flex; flex-direction: column; gap: 8px; }
+.field-label { font-size: 11px; font-weight: 600; letter-spacing: 1px; color: var(--text-sec); text-transform: uppercase; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tooltip { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border); cursor: help; position: relative; transition: color 0.2s, border-color 0.2s; flex-shrink: 0; }
+.tooltip:hover { color: var(--accent); border-color: var(--accent); }
+.tooltip::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #1a2535; border: 1px solid var(--border); color: var(--text-primary); font-size: 11px; font-weight: 400; line-height: 1.5; padding: 10px 14px; border-radius: 6px; width: 240px; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 100; white-space: normal; font-family: var(--font-mono); }
+.tooltip:hover::after { opacity: 1; }
+
+input[type="text"], textarea, select { width: 100%; background: var(--bg-field); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; -webkit-appearance: none; appearance: none; }
+input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+input[type="text"]::placeholder, textarea::placeholder { color: var(--text-muted); }
+.invalid { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(255,59,92,0.12) !important; }
+textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+.select-wrapper { position: relative; }
+.select-arrow { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--text-sec); pointer-events: none; font-size: 12px; }
+
+.action-row { display: flex; gap: 12px; margin-top: 4px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 11px 20px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: #020810; box-shadow: 0 0 20px var(--accent-glow); }
+.btn-primary:hover { background: #33ddff; box-shadow: 0 0 30px var(--accent); transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: var(--text-sec); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--border-hover); color: var(--text-primary); }
+.btn-secondary { background: transparent; color: var(--green); border: 1px solid var(--green); }
+.btn-secondary:hover { background: rgba(0,255,136,0.08); }
+.form-error { font-size: 12px; color: var(--red); background: rgba(255,59,92,0.08); border: 1px solid rgba(255,59,92,0.3); border-radius: 6px; padding: 10px 14px; display: none; line-height: 1.5; }
+
+/* EMPTY STATE */
+.empty-state { padding: 60px 40px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.empty-icon { font-size: 56px; color: var(--text-muted); opacity: 0.5; }
+.empty-title { font-family: var(--font-display); font-size: 18px; color: var(--text-sec); }
+.empty-sub { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+.empty-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; width: 100%; max-width: 280px; }
+.step { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-muted); }
+.step span { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+/* LOADING */
+.loading-state { padding: 80px 40px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.loader-ring { width: 48px; height: 48px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-state p { font-size: 13px; color: var(--text-sec); letter-spacing: 1px; }
+
+/* REPORT CARD */
+.report-card { animation: fade-up 0.4s ease; }
+.report-header { padding: 28px 32px 24px; background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, transparent 60%); border-bottom: 1px solid var(--border); }
+.report-meta-top { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 14px; }
+.report-id { color: var(--accent); font-weight: 700; }
+.report-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.4; margin-bottom: 16px; }
+.report-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.r-badge { font-size: 10px; font-weight: 600; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; }
+.r-owasp { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+.r-cwe { background: rgba(106,138,170,0.1); color: var(--text-sec); border: 1px solid var(--border); }
+.severity-pill { font-family: var(--font-display); font-size: 11px; font-weight: 800; letter-spacing: 2px; padding: 5px 14px; border-radius: 20px; border: 1px solid; text-transform: uppercase; }
+.sev-High { color: var(--sev-high); background: var(--sev-high-bg); border-color: var(--sev-high); box-shadow: 0 0 12px rgba(255,59,92,0.2); }
+.sev-Medium { color: var(--sev-med); background: var(--sev-med-bg); border-color: var(--sev-med); box-shadow: 0 0 12px rgba(255,193,7,0.15); }
+.sev-Low { color: var(--sev-low); background: var(--sev-low-bg); border-color: var(--sev-low); box-shadow: 0 0 12px rgba(0,255,136,0.15); }
+
+.report-body { padding: 0 32px 8px; }
+.r-section { padding: 22px 0; border-bottom: 1px solid var(--border); }
+.r-section:last-child { border-bottom: none; }
+.r-section-title { font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-sec); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.r-section-title span { color: var(--accent); font-size: 10px; opacity: 0.7; }
+.r-text { font-size: 13px; line-height: 1.8; color: var(--text-primary); opacity: 0.9; }
+.r-steps { list-style: none; display: flex; flex-direction: column; gap: 10px; counter-reset: step-counter; }
+.r-steps li { counter-increment: step-counter; display: flex; gap: 14px; align-items: flex-start; font-size: 13px; line-height: 1.6; color: var(--text-primary); opacity: 0.9; }
+.r-steps li::before { content: counter(step-counter, decimal-leading-zero); flex-shrink: 0; color: var(--accent); font-size: 10px; font-weight: 700; margin-top: 3px; min-width: 20px; }
+.r-mitigations { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.r-mitigations li { display: flex; gap: 12px; font-size: 13px; line-height: 1.6; color: var(--text-primary); opacity: 0.9; }
+.r-mitigations li::before { content: "→"; flex-shrink: 0; color: var(--green); font-weight: 700; }
+.suggestions-section { background: rgba(255,193,7,0.04); border: 1px solid rgba(255,193,7,0.2) !important; border-radius: 8px; margin: 16px 0; padding: 18px 20px !important; }
+.suggestions-title { color: var(--yellow) !important; }
+.suggestions-title span { color: var(--yellow) !important; }
+.suggestions-intro { font-size: 12px; color: rgba(255,193,7,0.7); margin-bottom: 14px; line-height: 1.6; }
+.r-suggestions { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.r-suggestions li { font-size: 12px; color: rgba(255,193,7,0.85); line-height: 1.6; display: flex; gap: 10px; }
+.r-suggestions li::before { content: "◆"; flex-shrink: 0; font-size: 8px; margin-top: 4px; color: var(--yellow); }
+.report-actions { padding: 20px 32px 28px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.copy-confirm { font-size: 12px; color: var(--green); font-weight: 700; opacity: 0; transition: opacity 0.3s; letter-spacing: 1px; }
+
+.site-footer { position: relative; z-index: 1; text-align: center; padding: 20px; font-size: 10px; letter-spacing: 1px; color: var(--text-muted); border-top: 1px solid var(--border); }
+.footer-sep { margin: 0 10px; color: var(--border); }
+
+@media (max-width: 960px) { .app-layout { grid-template-columns: 1fr; padding: 20px; } .header-inner { padding: 14px 20px; } .report-header, .report-body, .report-actions { padding-left: 20px; padding-right: 20px; } }
+@media (max-width: 560px) { .action-row { flex-direction: column; } }
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="scanline"></div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo-block">
+      <span class="logo-icon">&#11041;</span>
+      <div>
+        <div class="logo-title">OWASP<span class="accent">SEC</span></div>
+        <div class="logo-sub">Bug Report Generator &middot;</div>
+      </div>
+    </div>
+    <nav class="header-badges">
+      <span class="badge badge-owasp">OWASP Top 10</span>
+      <span class="badge badge-live"><span class="live-dot"></span>LIVE</span>
+    </nav>
+  </div>
+</header>
+
+<main class="app-layout">
+
+  <!-- LEFT: FORM PANEL -->
+  <section class="panel panel-form">
+    <div class="panel-header">
+      <h2 class="panel-title"><span class="panel-icon">&#10792;</span> Report Parameters</h2>
+      <span class="panel-tag">INPUT</span>
+    </div>
+    <form id="reportForm" novalidate autocomplete="off">
+
+      <div class="field-group">
+        <label class="field-label" for="vuln_type">
+          Vulnerability Type
+          <span class="tooltip" data-tip="Select the OWASP vulnerability category that matches your finding.">?</span>
+        </label>
+        <div class="select-wrapper">
+          <select id="vuln_type" name="vuln_type">
+            <option value="">&#8212; Select Vulnerability &#8212;</option>
+            <option value="xss">Cross-Site Scripting (XSS)</option>
+            <option value="sqli">SQL Injection (SQLi)</option>
+            <option value="idor">Broken Access Control (IDOR)</option>
+            <option value="misconfig">Security Misconfiguration</option>
+            <option value="exposure">Sensitive Data Exposure</option>
+          </select>
+          <span class="select-arrow">&#9662;</span>
+        </div>
+      </div>
+
+      <div class="field-group" id="field-url" style="display:none;">
+        <label class="field-label" for="url">
+          Vulnerable URL / Endpoint
+          <span class="tooltip" data-tip="Full URL or endpoint path where the vulnerability was found.">?</span>
+        </label>
+        <input type="text" id="url" name="url" placeholder="https://target.com/api/v1/..." />
+      </div>
+
+      <div id="dynamic-fields"></div>
+
+      <div class="action-row" id="action-row" style="display:none;">
+        <button type="submit" class="btn btn-primary">
+          <span>&#9654;</span> Generate Report
+        </button>
+        <button type="button" class="btn btn-ghost" id="resetBtn">Reset</button>
+      </div>
+
+      <div class="form-error" id="formError"></div>
+    </form>
+  </section>
+
+  <!-- RIGHT: OUTPUT PANEL -->
+  <section class="panel panel-output">
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">&#9703;</div>
+      <p class="empty-title">Report Preview</p>
+      <p class="empty-sub">Fill in the form and click <strong>Generate Report</strong><br>to produce a professional security finding.</p>
+      <div class="empty-steps">
+        <div class="step"><span>1</span>Select vulnerability type</div>
+        <div class="step"><span>2</span>Enter finding details</div>
+        <div class="step"><span>3</span>Generate &amp; export report</div>
+      </div>
+    </div>
+
+    <div class="loading-state" id="loadingState" style="display:none;">
+      <div class="loader-ring"></div>
+      <p>Analyzing vulnerability&hellip;</p>
+    </div>
+
+    <article class="report-card" id="reportCard" style="display:none;">
+      <div class="report-header">
+        <div class="report-meta-top">
+          <span class="report-id" id="rId"></span>
+          <span id="rDate"></span>
+        </div>
+        <h1 class="report-title" id="rTitle"></h1>
+        <div class="report-badges">
+          <span class="r-badge r-owasp" id="rOwasp"></span>
+          <span class="r-badge r-cwe" id="rCwe"></span>
+          <span class="severity-pill" id="rSeverity"></span>
+        </div>
+      </div>
+
+      <div class="report-body">
+        <section class="r-section">
+          <h3 class="r-section-title"><span>01</span> Description</h3>
+          <p class="r-text" id="rDescription"></p>
+        </section>
+        <section class="r-section">
+          <h3 class="r-section-title"><span>02</span> Steps to Reproduce</h3>
+          <ol class="r-steps" id="rSteps"></ol>
+        </section>
+        <section class="r-section">
+          <h3 class="r-section-title"><span>03</span> Impact</h3>
+          <p class="r-text" id="rImpact"></p>
+        </section>
+        <section class="r-section">
+          <h3 class="r-section-title"><span>04</span> Mitigation</h3>
+          <ul class="r-mitigations" id="rMitigation"></ul>
+        </section>
+        <section class="r-section suggestions-section" id="rSuggestionsSection" style="display:none;">
+          <h3 class="r-section-title suggestions-title"><span>&#9888;</span> Improvement Suggestions</h3>
+          <p class="suggestions-intro">Your inputs appear incomplete. Consider adding these details to strengthen the report:</p>
+          <ul class="r-suggestions" id="rSuggestions"></ul>
+        </section>
+      </div>
+
+      <div class="report-actions">
+        <button class="btn btn-primary" id="copyBtn"><span>&#10744;</span> Copy to Clipboard</button>
+        <button class="btn btn-secondary" id="pdfBtn"><span>&#8595;</span> Download PDF</button>
+        <span class="copy-confirm" id="copyConfirm">&#10003; Copied!</span>
+      </div>
+    </article>
+
+  </section>
+</main>
+
+<footer class="site-footer">
+  <span>OWASP Top 10 &middot; 2021 Edition</span>
+  <span class="footer-sep">&middot;</span>
+  <span>Logic-based &middot; No external APIs</span>
+  <span class="footer-sep">&middot;</span>
+  <span>For authorized security testing only</span>
+</footer>
+
+<script>
+// ============================================================
+// ALL JS INLINE — no external script file dependency
+// ============================================================
+
+var FIELD_DEFS = {
+  xss: [
+    { id:"xss_type", label:"XSS Type", type:"select",
+      options:["Stored","Reflected","DOM-based"],
+      tip:"Stored XSS persists in the DB and is most severe. Reflected is URL-triggered. DOM-based runs entirely client-side." },
+    { id:"payload", label:"Payload Used", type:"text",
+      placeholder:"<script>alert(document.cookie)<\/script>",
+      tip:"The exact JavaScript payload you injected. Include any filter evasion techniques." },
+    { id:"execution_proof", label:"Execution Proof / Evidence", type:"textarea",
+      placeholder:"Alert box appeared with session cookie. Affected page: /comments",
+      tip:"Describe what happened when the payload executed. Reference a screenshot if available." }
+  ],
+  sqli: [
+    { id:"injection_type", label:"Injection Type", type:"select",
+      options:["Error-based","Blind Boolean","Time-based Blind","UNION-based","Out-of-band"],
+      tip:"UNION-based and Error-based are most exploitable. Time-based blind is harder to detect." },
+    { id:"parameter", label:"Vulnerable Parameter", type:"text",
+      placeholder:"id, username, search, order_by...",
+      tip:"The HTTP parameter or form field where the injection point was found." },
+    { id:"db_impact", label:"Database Impact Observed", type:"textarea",
+      placeholder:"Extracted admin password hash. Enumerated tables: users, orders, sessions.",
+      tip:"What data or behavior did you observe? Be specific — this drives severity calculation." }
+  ],
+  idor: [
+    { id:"http_method", label:"HTTP Method", type:"select",
+      options:["GET","POST","PUT","PATCH","DELETE"],
+      tip:"DELETE and PUT IDORs are more severe as they allow data modification or destruction." },
+    { id:"object_id", label:"Object ID Manipulated", type:"text",
+      placeholder:"user_id=124 (changed from 123)",
+      tip:"Show the original vs manipulated ID value. Sequential integers are the most common IDOR pattern." },
+    { id:"accessed_data", label:"Accessed / Modified Data", type:"textarea",
+      placeholder:"Accessed full profile of user#124: name, email, phone, payment methods.",
+      tip:"Describe exactly what unauthorized data you could read, modify or delete." }
+  ],
+  misconfig: [
+    { id:"misconfig_type", label:"Misconfiguration Type", type:"select",
+      options:["Directory Listing Enabled","Default Credentials","Debug Mode Active","Verbose Error Messages","Exposed Admin Panel","Missing Security Headers","Open Cloud Storage Bucket","Unrestricted CORS"],
+      tip:"Select the most accurate category — this maps to the primary attack vector." },
+    { id:"environment", label:"Environment", type:"select",
+      options:["Production","Staging","Development","Unknown"],
+      tip:"Production findings are always higher severity than staging or dev environments." },
+    { id:"evidence", label:"Evidence / Observation", type:"textarea",
+      placeholder:"Server returned full stack trace with DB connection string on 500 error.",
+      tip:"What specific output or behavior confirms the misconfiguration exists?" }
+  ],
+  exposure: [
+    { id:"data_type", label:"Type of Exposed Data", type:"select",
+      options:["Credentials / Passwords","PII (Name, Email, Address)","Financial / Card Data","Health / Medical Records","Session Tokens / API Keys","Internal IP / Infrastructure Data","Other Sensitive Data"],
+      tip:"Financial, health, and credential data are regulated — these carry the highest severity." },
+    { id:"discovery_method", label:"How Data Was Discovered", type:"text",
+      placeholder:"API response body, JS source file, error page, log file...",
+      tip:"Explain the exact method so developers can reproduce and patch the leak." },
+    { id:"encryption_status", label:"Encryption / Protection Status", type:"select",
+      options:["Plaintext — No Encryption","Weak Encryption (MD5/SHA1)","Encoded but Not Encrypted (Base64)","Partially Encrypted","Unknown"],
+      tip:"Plaintext or weakly hashed data dramatically increases severity rating." }
+  ]
+};
+
+// ── DOM REFS ────────────────────────────────────────────────────
+var vulnSelect   = document.getElementById("vuln_type");
+var urlFieldWrap = document.getElementById("field-url");
+var urlInput     = document.getElementById("url");
+var dynFields    = document.getElementById("dynamic-fields");
+var actionRow    = document.getElementById("action-row");
+var reportForm   = document.getElementById("reportForm");
+var formError    = document.getElementById("formError");
+var emptyState   = document.getElementById("emptyState");
+var loadingState = document.getElementById("loadingState");
+var reportCard   = document.getElementById("reportCard");
+
+// ── UTILITIES ───────────────────────────────────────────────────
+function showEmpty()   { emptyState.style.display="flex"; loadingState.style.display="none"; reportCard.style.display="none"; }
+function showLoading() { emptyState.style.display="none"; loadingState.style.display="flex"; reportCard.style.display="none"; }
+function showReport()  { emptyState.style.display="none"; loadingState.style.display="none"; reportCard.style.display="block"; }
+function showError(m)  { formError.textContent=m; formError.style.display="block"; }
+function hideError()   { formError.textContent=""; formError.style.display="none"; }
+
+function escapeHtml(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── DYNAMIC FIELD BUILDER ───────────────────────────────────────
+function renderDynamicFields(type) {
+  dynFields.innerHTML = "";
+  if (!type || !FIELD_DEFS[type]) return;
+
+  FIELD_DEFS[type].forEach(function(f) {
+    var group = document.createElement("div");
+    group.className = "field-group";
+
+    // Label
+    var lbl = document.createElement("label");
+    lbl.className = "field-label";
+    lbl.setAttribute("for", f.id);
+    lbl.innerHTML = escapeHtml(f.label) + ' <span class="tooltip" data-tip="' + escapeHtml(f.tip) + '">?</span>';
+    group.appendChild(lbl);
+
+    if (f.type === "select") {
+      var wrap = document.createElement("div");
+      wrap.className = "select-wrapper";
+      var sel = document.createElement("select");
+      sel.id = f.id; sel.name = f.id;
+      var defOpt = document.createElement("option");
+      defOpt.value = ""; defOpt.textContent = "— Select —";
+      sel.appendChild(defOpt);
+      f.options.forEach(function(o) {
+        var opt = document.createElement("option");
+        opt.value = o; opt.textContent = o;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener("change", function() { this.classList.remove("invalid"); });
+      var arr = document.createElement("span");
+      arr.className = "select-arrow"; arr.textContent = "▾";
+      wrap.appendChild(sel); wrap.appendChild(arr);
+      group.appendChild(wrap);
+
+    } else if (f.type === "textarea") {
+      var ta = document.createElement("textarea");
+      ta.id = f.id; ta.name = f.id; ta.placeholder = f.placeholder || "";
+      ta.addEventListener("input", function() { this.classList.remove("invalid"); });
+      group.appendChild(ta);
+
+    } else {
+      var inp = document.createElement("input");
+      inp.type = "text"; inp.id = f.id; inp.name = f.id; inp.placeholder = f.placeholder || "";
+      inp.addEventListener("input", function() { this.classList.remove("invalid"); });
+      group.appendChild(inp);
+    }
+
+    dynFields.appendChild(group);
+  });
+}
+
+// ── VULN TYPE CHANGE ────────────────────────────────────────────
+vulnSelect.addEventListener("change", function() {
+  hideError();
+  var type = this.value;
+  if (type && FIELD_DEFS[type]) {
+    urlFieldWrap.style.display = "flex";
+    renderDynamicFields(type);
+    actionRow.style.display = "flex";
+    urlInput.classList.remove("invalid");
+  } else {
+    urlFieldWrap.style.display = "none";
+    dynFields.innerHTML = "";
+    actionRow.style.display = "none";
+    showEmpty();
+  }
+});
+
+// ── FORM SUBMIT ─────────────────────────────────────────────────
+reportForm.addEventListener("submit", function(e) {
+  e.preventDefault();
+  hideError();
+
+  var type = vulnSelect.value;
+  if (!type) { showError("Please select a vulnerability type."); return; }
+
+  var payload = { vuln_type: type };
+  var bad = false;
+
+  var urlVal = urlInput.value.trim();
+  if (!urlVal) { urlInput.classList.add("invalid"); bad = true; }
+  else { payload.url = urlVal; urlInput.classList.remove("invalid"); }
+
+  (FIELD_DEFS[type] || []).forEach(function(f) {
+    var el = document.getElementById(f.id);
+    if (!el) return;
+    var v = el.value.trim();
+    if (!v) { el.classList.add("invalid"); bad = true; }
+    else { payload[f.id] = v; el.classList.remove("invalid"); }
+  });
+
+  if (bad) { showError("Please fill in all highlighted fields before generating a report."); return; }
+
+  showLoading();
+
+  fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+  .then(function(res) {
+    if (!res.ok) { showError("Error: " + (res.d.error || "Unknown server error")); showEmpty(); return; }
+    renderReport(res.d);
+  })
+  .catch(function(err) { showError("Network error: " + err.message); showEmpty(); });
+});
+
+// ── RENDER REPORT ───────────────────────────────────────────────
+function renderReport(r) {
+  document.getElementById("rId").textContent    = "#RPT-" + r.report_id;
+  document.getElementById("rDate").textContent  = r.generated_at;
+  document.getElementById("rTitle").textContent = r.title;
+  document.getElementById("rOwasp").textContent = r.owasp_id + " \u00B7 " + r.owasp_name;
+  document.getElementById("rCwe").textContent   = r.cwe;
+
+  var sev = document.getElementById("rSeverity");
+  var icon = r.severity === "High" ? "HIGH" : r.severity === "Medium" ? "MEDIUM" : "LOW";
+  sev.textContent = icon;
+  sev.className = "severity-pill sev-" + r.severity;
+
+  document.getElementById("rDescription").textContent = r.description;
+  document.getElementById("rImpact").textContent = r.impact;
+
+  var stepsEl = document.getElementById("rSteps");
+  stepsEl.innerHTML = "";
+  (r.steps_to_reproduce || []).forEach(function(s) {
+    var li = document.createElement("li"); li.textContent = s; stepsEl.appendChild(li);
+  });
+
+  var mitEl = document.getElementById("rMitigation");
+  mitEl.innerHTML = "";
+  (r.mitigation || []).forEach(function(m) {
+    var li = document.createElement("li"); li.textContent = m; mitEl.appendChild(li);
+  });
+
+  var sugs = r.improvement_suggestions || [];
+  var sugSec = document.getElementById("rSuggestionsSection");
+  if (sugs.length > 0) {
+    var sugEl = document.getElementById("rSuggestions");
+    sugEl.innerHTML = "";
+    sugs.forEach(function(s) {
+      var li = document.createElement("li"); li.textContent = s; sugEl.appendChild(li);
+    });
+    sugSec.style.display = "block";
+  } else {
+    sugSec.style.display = "none";
+  }
+
+  showReport();
+  reportCard.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ── RESET ───────────────────────────────────────────────────────
+document.getElementById("resetBtn").addEventListener("click", function() {
+  vulnSelect.value = "";
+  urlFieldWrap.style.display = "none";
+  urlInput.value = "";
+  dynFields.innerHTML = "";
+  actionRow.style.display = "none";
+  hideError();
+  showEmpty();
+});
+
+// ── COPY TO CLIPBOARD ───────────────────────────────────────────
+document.getElementById("copyBtn").addEventListener("click", function() {
+  var steps = Array.from(document.querySelectorAll("#rSteps li")).map(function(li,i){ return "  "+(i+1)+". "+li.textContent; }).join("\n");
+  var mits  = Array.from(document.querySelectorAll("#rMitigation li")).map(function(li){ return "  -> "+li.textContent; }).join("\n");
+  var text  = [
+    "===================================================",
+    "  SECURITY BUG REPORT  " + document.getElementById("rId").textContent,
+    "  Generated: " + document.getElementById("rDate").textContent,
+    "===================================================","",
+    "TITLE:    " + document.getElementById("rTitle").textContent,
+    "OWASP:    " + document.getElementById("rOwasp").textContent,
+    "CWE:      " + document.getElementById("rCwe").textContent,
+    "SEVERITY: " + document.getElementById("rSeverity").textContent,"",
+    "--- DESCRIPTION ---", document.getElementById("rDescription").textContent,"",
+    "--- STEPS TO REPRODUCE ---", steps,"",
+    "--- IMPACT ---", document.getElementById("rImpact").textContent,"",
+    "--- MITIGATION ---", mits,"",
+    "==================================================="
+  ].join("\n");
+
+  var confirm = document.getElementById("copyConfirm");
+  function flash() { confirm.style.opacity="1"; setTimeout(function(){ confirm.style.opacity="0"; }, 2500); }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flash).catch(function() {
+      fallbackCopy(text); flash();
+    });
+  } else {
+    fallbackCopy(text); flash();
+  }
+});
+
+function fallbackCopy(text) {
+  var ta = document.createElement("textarea");
+  ta.value = text; ta.style.cssText = "position:fixed;opacity:0;top:0;left:0;";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); } catch(e) {}
+  document.body.removeChild(ta);
+}
+
+// ── PDF DOWNLOAD ────────────────────────────────────────────────
+document.getElementById("pdfBtn").addEventListener("click", function() {
+  var sevText  = document.getElementById("rSeverity").textContent;
+  var sevColor = sevText.indexOf("HIGH") > -1 ? "#cc2244" : sevText.indexOf("MEDIUM") > -1 ? "#cc8800" : "#007744";
+  var steps    = Array.from(document.querySelectorAll("#rSteps li")).map(function(li){ return "<li>"+escapeHtml(li.textContent)+"</li>"; }).join("");
+  var mits     = Array.from(document.querySelectorAll("#rMitigation li")).map(function(li){ return "<li>"+escapeHtml(li.textContent)+"</li>"; }).join("");
+  var sugHtml  = "";
+  if (document.getElementById("rSuggestionsSection").style.display !== "none") {
+    var sugs = Array.from(document.querySelectorAll("#rSuggestions li")).map(function(li){ return "<li>"+escapeHtml(li.textContent)+"</li>"; }).join("");
+    sugHtml = '<div class="section warn"><h3>Improvement Suggestions</h3><ul>'+sugs+'</ul></div>';
+  }
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Security Report</title><style>' +
+    '*{box-sizing:border-box;margin:0;padding:0}body{font-family:monospace;background:#fff;color:#1a2535;font-size:12px;padding:40px}' +
+    '.hdr{border-bottom:3px solid #0d1117;padding-bottom:16px;margin-bottom:20px}' +
+    '.logo{font-size:18px;font-weight:800;letter-spacing:2px}.logo span{color:#0066aa}' +
+    '.meta{font-size:10px;color:#666;margin-top:4px}h1{font-size:16px;font-weight:800;margin:16px 0 12px;line-height:1.4}' +
+    '.badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}' +
+    '.b{font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;border:1px solid;letter-spacing:1px}' +
+    '.bo{color:#0066aa;border-color:#0066aa;background:#e8f4fa}.bc{color:#555;border-color:#ccc;background:#f5f5f5}' +
+    '.bs{font-weight:800;letter-spacing:2px;padding:4px 14px;border-radius:20px;color:#fff;background:'+sevColor+';border:none}' +
+    '.sec{margin:16px 0;padding:14px 18px;border-left:3px solid #dde;background:#fafbfc}' +
+    'h3{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#444;margin-bottom:10px}' +
+    'p,li{font-size:12px;line-height:1.8;color:#2a3a4a}ol,ul{padding-left:18px}li{margin-bottom:5px}' +
+    '.warn{border-left-color:#ffc107;background:#fffbf0}.warn h3{color:#996600}' +
+    '.foot{margin-top:28px;padding-top:14px;border-top:1px solid #dde;font-size:10px;color:#999;text-align:center}' +
+    '</style></head><body>' +
+    '<div class="hdr"><div class="logo">OWASP<span>SEC</span> BUG REPORT</div>' +
+    '<div class="meta">'+escapeHtml(document.getElementById("rId").textContent)+' &nbsp;|&nbsp; Generated: '+escapeHtml(document.getElementById("rDate").textContent)+'</div></div>' +
+    '<div class="badges">' +
+    '<span class="b bo">'+escapeHtml(document.getElementById("rOwasp").textContent)+'</span>' +
+    '<span class="b bc">'+escapeHtml(document.getElementById("rCwe").textContent)+'</span>' +
+    '<span class="b bs">'+escapeHtml(sevText)+'</span>' +
+    '</div>' +
+    '<h1>'+escapeHtml(document.getElementById("rTitle").textContent)+'</h1>' +
+    '<div class="sec"><h3>Description</h3><p>'+escapeHtml(document.getElementById("rDescription").textContent)+'</p></div>' +
+    '<div class="sec"><h3>Steps to Reproduce</h3><ol>'+steps+'</ol></div>' +
+    '<div class="sec"><h3>Impact</h3><p>'+escapeHtml(document.getElementById("rImpact").textContent)+'</p></div>' +
+    '<div class="sec"><h3>Mitigation</h3><ul>'+mits+'</ul></div>' +
+    sugHtml +
+    '<div class="foot">OWASP Top 10 &middot; 2021 Edition &middot; For authorized security testing only</div>' +
+    '<script>window.onload=function(){window.print();}<\/script>' +
+    '</body></html>';
+
+  var blob = new Blob([html], { type: "text/html" });
+  var url  = URL.createObjectURL(blob);
+  var win  = window.open(url, "_blank");
+  if (!win) {
+    var a = document.createElement("a");
+    a.href = url; a.download = "security-report.html";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+});
+</script>
+</body>
+</html>
