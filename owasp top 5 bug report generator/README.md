@@ -1,36 +1,44 @@
 # OWASP Top 5 Smart Bug Report Generator
 
-A complete, logic-driven web application for generating professional security vulnerability reports.
-No external APIs, no AI services — pure rule-based engine.
+A logic-driven web application for generating structured security vulnerability reports based on OWASP Top 10 concepts.
 
-## Project Structure
+Built using a rule-based engine (no external APIs or AI services), this tool helps standardize and speed up the bug reporting process for cybersecurity learners and bug bounty beginners.
 
-```
-owasp-bug-report/
-├── app.py              ← Flask routes (entry point)
-├── report_engine.py    ← Logic engine: severity, templates, suggestions
-├── requirements.txt    ← Python dependencies
-├── templates/
-│   └── index.html      ← Single-page frontend
-└── static/
-    ├── style.css       ← Dark cybersecurity UI
-    └── app.js          ← Dynamic form, API calls, PDF generation
-```
+---
 
-## Setup & Run
+## 🧠 Why this project?
 
-```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+Writing bug bounty reports manually can be:
+- Time-consuming  
+- Inconsistent in structure  
+- Difficult for beginners to format correctly  
 
-# 2. Start the app
-python app.py
+This tool helps:
+- Standardize report writing  
+- Guide users with structured inputs  
+- Reduce effort in creating professional-looking reports  
 
-# 3. Open in browser
-# http://localhost:5000
-```
+---
 
-## Supported Vulnerabilities
+## 🚀 Features
+
+- Smart dynamic form — adapts based on selected vulnerability type  
+- Severity auto-calculation — keyword-based classification (High/Medium/Low)  
+- Structured report output including:
+  - Title  
+  - OWASP Category  
+  - CWE Mapping  
+  - Steps to Reproduce  
+  - Impact  
+  - Mitigation  
+- Input improvement suggestions for incomplete or vague entries  
+- Copy to Clipboard — formatted plaintext report  
+- PDF Download — via browser print dialog  
+- Clean dark UI for better readability  
+
+---
+
+## 🛡 Supported Vulnerabilities
 
 | Type | OWASP ID | CWE |
 |------|----------|-----|
@@ -40,12 +48,41 @@ python app.py
 | Security Misconfiguration | A05:2021 | CWE-16 |
 | Sensitive Data Exposure | A02:2021 | CWE-200 |
 
-## Features
+---
 
-- **Smart dynamic form** — fields change based on selected vulnerability
-- **Severity auto-calculation** — keyword-based rules (High/Medium/Low)
-- **Professional report structure** — Title, OWASP Category, CWE, Steps, Impact, Mitigation
-- **Improvement suggestions** — triggered when inputs are vague or incomplete
-- **Copy to Clipboard** — formatted plaintext report
-- **PDF Download** — via browser print dialog (no external libraries)
-- **Dark cybersecurity UI** — JetBrains Mono + Syne fonts, neon accents
+## 📸 Demo
+
+(Add screenshots of UI and generated report here)
+
+---
+
+## 🌐 Live Demo
+
+
+
+---
+
+## ⚙️ Project Structure
+
+```
+owasp-bug-report/
+├── app.py              ← Flask routes (entry point)
+├── report_engine.py    ← Logic engine: severity, templates, suggestions
+├── requirements.txt    ← Python dependencies
+├── templates/
+│   └── index.html      ← Frontend UI
+└── static/
+    ├── style.css       ← Styling
+    └── app.js          ← Frontend logic
+```
+
+
+
+---
+
+## ▶️ Setup & Run
+
+```bash
+pip install -r requirements.txt
+python app.py
+# Open http://localhost:5000
