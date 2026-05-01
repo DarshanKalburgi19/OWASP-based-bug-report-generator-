@@ -72,6 +72,7 @@ This tool helps:
 
 🚧 Deployment in progress — will be available soon
 
+In the meantime, you can run the project locally
 ---
 
 ## ⚙️ Project Structure
