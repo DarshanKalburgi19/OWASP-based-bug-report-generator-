@@ -52,7 +52,7 @@ This tool helps:
 
 ## 📸 Demo
 
-(Add screenshots of UI and generated report here)
+
 
 ---
 
